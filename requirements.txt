@@ -1,0 +1,7 @@
+streamlit
+pandas
+st-gsheets-connection
+pdfplumber
+pytesseract
+Pillow
+openpyxl

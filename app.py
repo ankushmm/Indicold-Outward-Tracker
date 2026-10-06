@@ -20,7 +20,6 @@ st.title("🏭 INDICOLD - Outward Dispatch Tracker")
 st.markdown("---")
 
 # 2. Connect to the Master Google Sheet Database
-# This connects exactly to the sheet URL you just provided
 conn = st.connection("gsheets", type=GSheetsConnection)
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1s5y0bKy1Tm4qBTbudErYxSg46rO4ly8Fv_GaCfsvtjw/edit"
 
@@ -28,8 +27,11 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/1s5y0bKy1Tm4qBTbudErYxSg46rO
 try:
     active_vehicles_df = conn.read(spreadsheet=SHEET_URL, worksheet="Active_Vehicles")
     vehicle_list = active_vehicles_df['Vehicle No'].dropna().tolist()
-except:
+except Exception as e:
+    # Agar sheet connect nahi hui, toh ek khali table bana lo taaki app crash na ho
+    active_vehicles_df = pd.DataFrame(columns=["Vehicle No", "Status", "Timestamp"])
     vehicle_list = []
+    st.error(f"Google Sheets Connection Error: Please setup API keys.")
 
 # 3. Add New Vehicle
 col1, col2 = st.columns([3, 1])
@@ -41,10 +43,16 @@ with col2:
         if new_vehicle and new_vehicle not in vehicle_list:
             new_row = pd.DataFrame({"Vehicle No": [new_vehicle], "Status": ["In Progress"], "Timestamp": [pd.Timestamp.now()]})
             updated_vehicles = pd.concat([active_vehicles_df, new_row], ignore_index=True)
-            conn.update(spreadsheet=SHEET_URL, worksheet="Active_Vehicles", data=updated_vehicles)
-            st.success(f"Vehicle {new_vehicle} initialized!")
+            
+            try:
+                # Try saving to Google Sheets
+                conn.update(spreadsheet=SHEET_URL, worksheet="Active_Vehicles", data=updated_vehicles)
+                st.success(f"Vehicle {new_vehicle} initialized & saved to Cloud!")
+            except Exception as e:
+                # Agar save fail ho, toh error dikhao par crash mat karo
+                st.warning(f"Vehicle added to screen, but failed to save to Google Sheets. Need API setup.")
+            
             st.rerun()
-
 # 4. Processing Tabs for Each Vehicle
 if vehicle_list:
     tabs = st.tabs(vehicle_list)
